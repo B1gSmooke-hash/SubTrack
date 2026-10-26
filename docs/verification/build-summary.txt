@@ -1,0 +1,8 @@
+SubTrack 0.2.0 | 27.10.2026
+Command: gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
+BUILD SUCCESSFUL
+JVM tests: 10, failures: 0, errors: 0
+Android Lint: 0 errors, 10 warnings (pinned dependency versions and kapt).
+Native Android device/emulator run: NOT PERFORMED.
+Browser prototype checks: 12 passed.
+Release: R8 enabled, resource shrinking enabled; unsigned APK.

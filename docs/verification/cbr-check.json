@@ -1,0 +1,15 @@
+{
+  "http_status": 200,
+  "date": "27.10.2026",
+  "items": 54,
+  "currencies": {
+    "USD": {
+      "nominal": "1",
+      "value": "80,4909"
+    },
+    "EUR": {
+      "nominal": "1",
+      "value": "90,0935"
+    }
+  }
+}

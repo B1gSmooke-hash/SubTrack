@@ -1,0 +1,92 @@
+package ru.subtrack
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+
+val categoryColors = listOf(Color(0xFF176B5B), Color(0xFF7D68C4), Color(0xFFE5A341), Color(0xFF4C8CBA), Color(0xFF9B6878))
+
+@Composable fun SubscriptionCard(item: Subscription, monthlyRub: BigDecimal?, onClick: () -> Unit) {
+    val days = ChronoUnit.DAYS.between(LocalDate.now(), LocalDate.parse(item.nextDate))
+    val target = if (days <= 3 && !item.archived) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant
+    val background by animateColorAsState(target, tween(350), label = "paymentStatus")
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp)) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).background(categoryColors[categories.indexOf(item.category).coerceAtLeast(0)], RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+                    Text(item.name.take(1).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                    Text(item.name, style = MaterialTheme.typography.titleMedium)
+                    Text(item.category, style = MaterialTheme.typography.bodySmall)
+                }
+                Text("${Money.display(BigDecimal.valueOf(item.amountMinor, 2))} ${item.currency}", style = MaterialTheme.typography.labelLarge)
+            }
+            Text(if (monthlyRub != null) "${Money.display(monthlyRub)} ₽ / мес." else "Курс не загружен", style = MaterialTheme.typography.bodySmall)
+            Row(Modifier.fillMaxWidth().background(background, RoundedCornerShape(10.dp)).padding(8.dp)) {
+                Text(when { item.archived -> "В архиве"; days < 0 -> "Дата списания прошла"; days == 0L -> "Списание сегодня"; else -> "До списания: $days дн." }, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                if (item.trial) Text("Пробный", style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+}
+
+@Composable fun SpendingRing(values: List<Pair<String, BigDecimal>>, total: BigDecimal) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    val progress by animateFloatAsState(if (visible) 1f else 0f, tween(650), label = "spendingRing")
+    val muted = MaterialTheme.colorScheme.surfaceVariant
+    Box(Modifier.fillMaxWidth().height(236.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(220.dp).semantics { contentDescription = "Расходы по категориям. Итого ${Money.display(total)} рублей" }) {
+            val stroke = 22.dp.toPx()
+            val diameter = size.minDimension - stroke
+            val origin = Offset(stroke / 2, stroke / 2)
+            drawArc(muted, 0f, 360f, false, origin, Size(diameter, diameter), style = Stroke(stroke))
+            if (total.signum() > 0) {
+                var start = -90f
+                values.forEach { (name, amount) ->
+                    val sweep = (amount.toDouble() / total.toDouble() * 360).toFloat()
+                    drawArc(categoryColors[categories.indexOf(name).coerceAtLeast(0)], start, (sweep - 3f).coerceAtLeast(0f) * progress,
+                        false, origin, Size(diameter, diameter), style = Stroke(stroke, cap = StrokeCap.Round))
+                    start += sweep
+                }
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Расходы", style = MaterialTheme.typography.labelLarge)
+            Text("${Money.display(total)} ₽", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable fun PeriodSelector(selected: Int, onSelect: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)).padding(4.dp)) {
+        listOf(1 to "Месяц", 3 to "Квартал", 12 to "Год").forEach { (value, title) ->
+            val color by animateColorAsState(if (selected == value) MaterialTheme.colorScheme.primary else Color.Transparent, label = "period")
+            Box(Modifier.weight(1f).background(color, RoundedCornerShape(12.dp)).clickable { onSelect(value) }.padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                Text(title, color = if (selected == value) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}

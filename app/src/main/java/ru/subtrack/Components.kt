@@ -41,9 +41,9 @@ val categoryColors = listOf(Color(0xFF176B5B), Color(0xFF7D68C4), Color(0xFFE5A3
                     Text(item.name, style = MaterialTheme.typography.titleMedium)
                     Text(item.category, style = MaterialTheme.typography.bodySmall)
                 }
-                Text("${Money.display(BigDecimal.valueOf(item.amountMinor, 2))} ${item.currency}", style = MaterialTheme.typography.labelLarge)
+                Text(if (item.currency == "RUB") "${Money.display(BigDecimal.valueOf(item.amountMinor, 2))} ₽" else "—", style = MaterialTheme.typography.labelLarge)
             }
-            Text(if (monthlyRub != null) "${Money.display(monthlyRub)} ₽ / мес." else "Курс не загружен", style = MaterialTheme.typography.bodySmall)
+            Text(if (monthlyRub != null) "${Money.display(monthlyRub)} ₽ / мес." else "Укажите стоимость в рублях", style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth().background(background, RoundedCornerShape(10.dp)).padding(8.dp)) {
                 Text(when { item.archived -> "В архиве"; days < 0 -> "Дата списания прошла"; days == 0L -> "Списание сегодня"; else -> "До списания: $days дн." }, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                 if (item.trial) Text("Пробный", style = MaterialTheme.typography.labelMedium)

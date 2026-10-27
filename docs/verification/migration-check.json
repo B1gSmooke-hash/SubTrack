@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "oldVersion": 1,
+  "newVersion": 2,
+  "checks": [
+    "new schema matches retained tables",
+    "users preserved",
+    "ruble and legacy records preserved",
+    "unused cache removed",
+    "foreign keys valid"
+  ],
+  "nativeRoomInstrumentation": false
+}

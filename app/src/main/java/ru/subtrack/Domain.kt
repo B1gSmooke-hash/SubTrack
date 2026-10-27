@@ -24,8 +24,9 @@ object Money {
             else -> amount
         }
     }
-    fun rub(monthly: BigDecimal, code: String, rates: Map<String, String>): BigDecimal? =
-        if (code == "RUB") monthly else rates[code]?.toBigDecimalOrNull()?.let(monthly::multiply)
+    // Never reinterpret legacy foreign-currency amounts as rubles.
+    fun monthlyRub(amountMinor: Long, period: String, currency: String): BigDecimal? =
+        if (currency == "RUB") monthly(amountMinor, period) else null
     fun next(date: LocalDate, period: String): LocalDate = when (period) {
         "YEAR" -> date.plusYears(1); "QUARTER" -> date.plusMonths(3)
         "WEEK" -> date.plusWeeks(1); else -> date.plusMonths(1)

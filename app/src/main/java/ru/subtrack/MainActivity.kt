@@ -48,13 +48,11 @@ class MainActivity : ComponentActivity() {
 @Composable fun App(vm: AppViewModel) {
     val user by vm.user.collectAsStateWithLifecycle()
     val items by vm.items.collectAsStateWithLifecycle()
-    val rates by vm.rates.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
     val dark by vm.dark.collectAsStateWithLifecycle()
     val snack = remember { SnackbarHostState() }
-    val rateMap = rates.associate { it.code to it.rubPerUnit }
-    fun monthly(s: Subscription) = Money.rub(Money.monthly(s.amountMinor, s.period), s.currency, rateMap)
+    fun monthly(s: Subscription) = Money.monthlyRub(s.amountMinor, s.period, s.currency)
     LaunchedEffect(message) { message?.let { snack.showSnackbar(it); vm.message.value = null } }
     key(user?.id) {
         val nav = rememberNavController()
@@ -95,7 +93,7 @@ class MainActivity : ComponentActivity() {
                                     Text("Активных подписок: ${active.size}")
                                 }
                             }
-                            if (active.any { monthly(it) == null }) Text("Итог неполный: для части подписок нужен курс. Обновите его в настройках.", color = MaterialTheme.colorScheme.error)
+                            if (active.any { monthly(it) == null }) Text("Для части старых записей нужно указать стоимость в рублях. Откройте их и нажмите «Редактировать».", color = MaterialTheme.colorScheme.error)
                             OutlinedTextField(query,{query=it},label={Text("Найти подписку")},modifier=Modifier.fillMaxWidth(),singleLine=true)
                             val filtered = active.filter { it.name.contains(query,true) }
                             if(filtered.isEmpty()) Text(if(active.isEmpty()) "Добавьте первую подписку кнопкой +" else "Ничего не найдено")
@@ -112,7 +110,7 @@ class MainActivity : ComponentActivity() {
                             PeriodSelector(period) { period=it }
                             SpendingRing(grouped,grouped.fold(BigDecimal.ZERO) { acc,p -> acc+p.second })
                             Text("Оценка регулярных расходов, а не история списаний", style=MaterialTheme.typography.bodySmall)
-                            if(active.any { monthly(it)==null }) Text("Часть сумм не включена: отсутствует курс",color=MaterialTheme.colorScheme.error)
+                            if(active.any { monthly(it)==null }) Text("Часть старых записей не включена: укажите их стоимость в рублях",color=MaterialTheme.colorScheme.error)
                             grouped.forEach { (c,v) -> OutlinedButton(onClick={category=if(category==c)null else c},modifier=Modifier.fillMaxWidth()) { Text("$c — ${Money.display(v)} ₽") } }
                             category?.let { c -> active.filter{it.category==c}.forEach { s -> SubscriptionCard(s,monthly(s)) {nav.navigate("detail/${s.id}")} } }
                         }
@@ -127,17 +125,14 @@ class MainActivity : ComponentActivity() {
                         Text("${user?.name}\n${user?.email}",style=MaterialTheme.typography.titleMedium)
                         Text("Локальный профиль на этом устройстве. Данные не синхронизируются.")
                         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) { Text("Тёмная тема",Modifier.weight(1f));Switch(dark,{vm.theme(it)},enabled=!busy) }
-                        Text("Валюта отчёта: RUB")
-                        Text("Курсы Банка России: ${rates.firstOrNull()?.date ?: "ещё не загружены"}")
-                        Button(onClick={vm.refresh()},enabled=!busy) { Text("Обновить курсы") }
-                        Text("Без сети используются сохранённые курсы. Если курса ещё нет, сумма в этой валюте не входит в итог.")
+                        Text("Валюта: российский рубль (₽)")
                         OutlinedButton(onClick={vm.logout()},enabled=!busy) {Text("Выйти")}
                     } }
                     composable("form/{id}") { back ->
                         val id=back.arguments?.getString("id")?.toLongOrNull()?.takeIf{it!=0L}
                         val item=items.firstOrNull{it.id==id && it.ownerId==user?.id}
                         if(id!=null && item==null) Screen {Text("Подписка не найдена")}
-                        else Form(item,busy) { n,a,c,p,d,cat,t -> vm.save(id,n,a,c,p,d,cat,t) {nav.popBackStack()} }
+                        else Form(item,busy) { n,a,p,d,cat,t -> vm.save(id,n,a,p,d,cat,t) {nav.popBackStack()} }
                     }
                     composable("detail/{id}") { back ->
                         val item=items.firstOrNull{it.id==back.arguments?.getString("id")?.toLongOrNull() && it.ownerId==user?.id}
@@ -145,7 +140,7 @@ class MainActivity : ComponentActivity() {
                         Screen {
                             if(item==null) Text("Подписка не найдена") else {
                                 Text(item.name,style=MaterialTheme.typography.headlineMedium)
-                                Text("${Money.display(BigDecimal.valueOf(item.amountMinor,2))} ${item.currency} / ${periods[item.period]}")
+                                Text(if (item.currency == "RUB") "${Money.display(BigDecimal.valueOf(item.amountMinor,2))} ₽ / ${periods[item.period]}" else "Укажите стоимость в рублях через «Редактировать»")
                                 Text("Следующее списание: ${item.nextDate}\nКатегория: ${item.category}\nПробный период: ${if(item.trial)"да" else "нет"}")
                                 monthly(item)?.let { Text("Оценка за год: ${Money.display(it.multiply(BigDecimal(12)))} ₽") }
                                 Button(onClick={nav.navigate("form/${item.id}")},enabled=!busy) { Text("Редактировать") }
@@ -188,22 +183,21 @@ class MainActivity : ComponentActivity() {
         DropdownMenu(expanded,onDismissRequest={expanded=false}) {options.forEach{(k,v)->DropdownMenuItem(text={Text(v)},onClick={onChange(k);expanded=false})}}
     }
 }
-@Composable fun Form(item:Subscription?,busy:Boolean,save:(String,String,String,String,String,String,Boolean)->Unit) {
+@Composable fun Form(item:Subscription?,busy:Boolean,save:(String,String,String,String,String,Boolean)->Unit) {
     var name by rememberSaveable(item?.id) {mutableStateOf(item?.name.orEmpty())}
-    var amount by rememberSaveable(item?.id) {mutableStateOf(item?.let{BigDecimal.valueOf(it.amountMinor,2).toPlainString()}.orEmpty())}
-    var currency by rememberSaveable(item?.id) {mutableStateOf(item?.currency?:"RUB")}
+    var amount by rememberSaveable(item?.id) {mutableStateOf(item?.takeIf{it.currency == "RUB"}?.let{BigDecimal.valueOf(it.amountMinor,2).toPlainString()}.orEmpty())}
     var period by rememberSaveable(item?.id) {mutableStateOf(item?.period?:"MONTH")}
     var date by rememberSaveable(item?.id) {mutableStateOf(item?.nextDate?:LocalDate.now().plusDays(1).toString())}
     var category by rememberSaveable(item?.id) {mutableStateOf(item?.category?:"Прочее")}
     var trial by rememberSaveable(item?.id) {mutableStateOf(item?.trial?:false)}
     Screen {
         OutlinedTextField(name,{name=it},label={Text("Название сервиса")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(amount,{amount=it},label={Text("Стоимость")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
-        Choice("Валюта",listOf("RUB","USD","EUR").associateWith{it},currency){currency=it}
+        OutlinedTextField(amount,{amount=it},label={Text("Стоимость, ₽")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
+        if (item != null && item.currency != "RUB") Text("Введите стоимость этой записи в рублях. До сохранения она не учитывается в итогах.")
         Choice("Период",periods,period){period=it}
         OutlinedTextField(date,{date=it},label={Text("Дата списания ГГГГ-ММ-ДД")},singleLine=true,modifier=Modifier.fillMaxWidth())
         Choice("Категория",categories.associateWith{it},category){category=it}
         Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(trial,{trial=it});Text("Пробный период")}
-        Button(onClick={save(name,amount,currency,period,date,category,trial)},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Сохранить")}
+        Button(onClick={save(name,amount,period,date,category,trial)},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Сохранить")}
     }
 }

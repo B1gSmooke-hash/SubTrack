@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="ru.subtrack.DomainTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-26T22:13:23" hostname="DESKTOP-3SHJJGJ" time="4.65">
+<testsuite name="ru.subtrack.DomainTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-10-27T01:03:34" hostname="DESKTOP-3SHJJGJ" time="7.53">
   <properties/>
-  <testcase name="missingRateIsNotOne" classname="ru.subtrack.DomainTest" time="0.016"/>
+  <testcase name="rubleTotalsKeepKopecksAndPeriods" classname="ru.subtrack.DomainTest" time="0.016"/>
   <testcase name="yearlyNormalizesToMonth" classname="ru.subtrack.DomainTest" time="0.0"/>
-  <testcase name="weeklyUsesAnnualizedEstimate" classname="ru.subtrack.DomainTest" time="0.0"/>
-  <testcase name="passwordLengthBoundaries" classname="ru.subtrack.DomainTest" time="0.014"/>
-  <testcase name="rejectsInvalidAmounts" classname="ru.subtrack.DomainTest" time="0.037"/>
-  <testcase name="monthEndIsClamped" classname="ru.subtrack.DomainTest" time="0.001"/>
-  <testcase name="conversionUsesRubPerUnit" classname="ru.subtrack.DomainTest" time="0.005"/>
+  <testcase name="legacyAmountsAreNotRelabeledAsRubles" classname="ru.subtrack.DomainTest" time="0.038"/>
+  <testcase name="weeklyUsesAnnualizedEstimate" classname="ru.subtrack.DomainTest" time="0.001"/>
+  <testcase name="passwordLengthBoundaries" classname="ru.subtrack.DomainTest" time="0.019"/>
+  <testcase name="rejectsInvalidAmounts" classname="ru.subtrack.DomainTest" time="0.006"/>
+  <testcase name="monthEndIsClamped" classname="ru.subtrack.DomainTest" time="0.0"/>
   <testcase name="parsesCommaAndRejectsFractionsOfKopeck" classname="ru.subtrack.DomainTest" time="0.0"/>
-  <testcase name="passwordHashIsSaltedAndChecked" classname="ru.subtrack.DomainTest" time="4.571"/>
+  <testcase name="passwordHashIsSaltedAndChecked" classname="ru.subtrack.DomainTest" time="7.439"/>
   <testcase name="quarterlyNormalizesToMonth" classname="ru.subtrack.DomainTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

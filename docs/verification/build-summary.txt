@@ -1,10 +1,11 @@
-SubTrack 0.2.1 | 27.10.2026 | RUB only
+SubTrack 0.3.0 | 29.10.2026 | Android UI update, RUB only
 Command: gradlew testDebugUnitTest assembleDebug assembleRelease lintDebug
 BUILD SUCCESSFUL
-JVM tests: 10, failures: 0, errors: 0
-Browser prototype scenarios: 15 passed
-SQLite schema/data preservation check: passed (not native Room instrumentation)
+JVM tests: 12, failures: 0, errors: 0
+Browser prototype: unchanged; previous 15-scenario result retained
+SQLite schema unchanged (version 2); existing profile/subscriptions preserved after APK upgrade
 Android Lint: 0 errors, 10 warnings (pinned dependency versions and kapt)
-Debug APK: versionCode 2, versionName 0.2.1, minSdk 26, no INTERNET permission
+Debug APK: versionCode 3, versionName 0.3.0, minSdk 26, no INTERNET permission; signature verified
 Release: R8 and resource shrinking enabled; unsigned APK
-Native Android device/emulator run: NOT PERFORMED
+Native Android emulator: API 35, install/update and UI scenarios passed; see android-ui-0.3.0.md
+Physical Android 16 device: not tested

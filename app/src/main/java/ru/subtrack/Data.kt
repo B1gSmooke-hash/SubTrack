@@ -7,6 +7,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,7 @@ data class Subscription(@PrimaryKey(autoGenerate = true) val id: Long = 0, val o
     val nextDate: String, val category: String, val trial: Boolean = false, val archived: Boolean = false)
 @Dao interface Store {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1") suspend fun user(email: String): User?
+    @Query("SELECT * FROM users WHERE id = :id LIMIT 1") suspend fun userById(id: Long): User?
     @Insert suspend fun addUser(user: User): Long
     @Query("SELECT * FROM subscriptions WHERE ownerId = :owner ORDER BY nextDate, name")
     fun subscriptions(owner: Long): Flow<List<Subscription>>
@@ -41,6 +43,11 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 val Context.preferences by preferencesDataStore("settings")
 
 class Repository(private val context: Context, val store: Store) {
+    private val sessionKey = longPreferencesKey("sessionUserId")
+    val session = context.preferences.data.map { it[sessionKey] }.distinctUntilChanged()
+        .map { id -> id?.let { store.userById(it) } }
+    suspend fun startSession(user: User) { context.preferences.edit { it[sessionKey] = user.id } }
+    suspend fun endSession() { context.preferences.edit { it.remove(sessionKey) } }
     val dark = context.preferences.data.map { it[booleanPreferencesKey("dark")] ?: false }
     suspend fun setDark(value: Boolean) { context.preferences.edit { it[booleanPreferencesKey("dark")] = value } }
     suspend fun register(name: String, email: String, password: String): User = withContext(Dispatchers.IO) {

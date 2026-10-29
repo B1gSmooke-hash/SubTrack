@@ -1,6 +1,14 @@
 package ru.subtrack
 
 import android.os.Bundle
+import androidx.core.view.WindowCompat
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.foundation.background
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,16 +45,26 @@ class MainActivity : ComponentActivity() {
                 @Suppress("UNCHECKED_CAST") override fun <T : ViewModel> create(modelClass: Class<T>): T = AppViewModel(repo) as T
             })
             val dark by vm.dark.collectAsStateWithLifecycle()
-            val colors = if (dark) darkColorScheme(primary = Color(0xFF8ED5C1)) else lightColorScheme(
-                primary = Color(0xFF176B5B), background = Color(0xFFF5F7F4), surface = Color(0xFFF5F7F4), secondaryContainer = Color(0xFFD9EBE4))
-            MaterialTheme(colorScheme = colors) { App(vm) }
+            SideEffect {
+                WindowCompat.getInsetsController(window,window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+            SubTrackTheme(dark) { DismissInputOnOutsideTap { App(vm) } }
         }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable fun App(vm: AppViewModel) {
     val user by vm.user.collectAsStateWithLifecycle()
+    val initializing by vm.initializing.collectAsStateWithLifecycle()
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    if (initializing) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),contentAlignment=Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
     val items by vm.items.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -58,47 +76,60 @@ class MainActivity : ComponentActivity() {
         val nav = rememberNavController()
         val entry by nav.currentBackStackEntryAsState()
         val route = entry?.destination?.route ?: if (user == null) "login" else "home"
+        LaunchedEffect(route) { focus.clearFocus(); keyboard?.hide() }
         val main = route in listOf("home", "stats", "archive")
         val title = when(route) { "login" -> "Вход"; "register" -> "Регистрация"; "home" -> "SubTrack"; "stats" -> "Статистика"; "archive" -> "Архив"; "settings" -> "Настройки"; "form/{id}" -> "Подписка"; else -> "Детали" }
         Scaffold(snackbarHost = { SnackbarHost(snack) }, topBar = {
-            TopAppBar(title = { Text(title) }, navigationIcon = {
+            TopAppBar(title = { Text(title,style=MaterialTheme.typography.titleLarge) },
+                colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background), navigationIcon = {
                 if (!main && route != "login") IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
             }, actions = {
                 if (main) IconButton(onClick = { nav.navigate("settings") }) { Icon(Icons.Default.Settings, "Настройки") }
             })
         }, bottomBar = {
-            if (main) NavigationBar {
+            if (main) NavigationBar(containerColor=MaterialTheme.colorScheme.surface,tonalElevation=0.dp) {
                 listOf(Triple("home", "Подписки", Icons.Default.Home), Triple("stats", "Статистика", Icons.Default.PieChart), Triple("archive", "Архив", Icons.Default.Archive)).forEach { (r,t,i) ->
                     NavigationBarItem(selected = route == r, onClick = { nav.navigate(r) { popUpTo("home") { saveState = true }; launchSingleTop = true; restoreState = true } }, icon = { Icon(i,t) }, label = { Text(t) })
                 }
             }
         }, floatingActionButton = {
-            if (route == "home") FloatingActionButton(onClick = { nav.navigate("form/0") }) { Icon(Icons.Default.Add, "Добавить подписку") }
+            if (route == "home") ExtendedFloatingActionButton(onClick = { nav.navigate("form/0") },
+                containerColor=MaterialTheme.colorScheme.primary,contentColor=MaterialTheme.colorScheme.onPrimary,
+                icon={Icon(Icons.Default.Add,null)},text={Text("Добавить")})
         }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                NavHost(navController = nav, startDestination = if(user == null) "login" else "home", modifier = Modifier.weight(1f)) {
+                NavHost(navController = nav, startDestination = if(user == null) "login" else "home", modifier = Modifier.weight(1f),
+                    enterTransition={ fadeIn(tween(220,delayMillis=60)) + slideInHorizontally(tween(280,easing=FastOutSlowInEasing)) { it/12 } },
+                    exitTransition={ fadeOut(tween(140)) },
+                    popEnterTransition={ fadeIn(tween(220,delayMillis=40)) },
+                    popExitTransition={ fadeOut(tween(160)) + slideOutHorizontally(tween(240)) { it/12 } }
+                ) {
+                    // Separate graphs: an authenticated back stack never contains login/register.
+                    if (user == null) {
                     composable("login") { Auth(false, busy, { n,e,p,c -> vm.auth(false,n,e,p,c) }, { nav.navigate("register") }) }
                     composable("register") { Auth(true, busy, { n,e,p,c -> vm.auth(true,n,e,p,c) }, { nav.popBackStack() }) }
+                    } else {
                     composable("home") {
                         var query by rememberSaveable { mutableStateOf("") }
                         val active = items.filter { !it.archived && it.ownerId == user?.id }
                         Screen {
                             Text("Здравствуйте, ${user?.name.orEmpty()}", style = MaterialTheme.typography.titleLarge)
+                            Text("Ваши регулярные расходы — в одном месте",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                             val sum = active.mapNotNull(::monthly).fold(BigDecimal.ZERO, BigDecimal::add)
-                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
-                                Column(Modifier.padding(20.dp)) {
+                            Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary,contentColor=MaterialTheme.colorScheme.onPrimary)) {
+                                Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                                     Text("В среднем за месяц")
                                     Text("${Money.display(sum)} ₽", style = MaterialTheme.typography.headlineLarge)
-                                    Text("Активных подписок: ${active.size}")
+                                    Text("${active.size} активных подписок",style=MaterialTheme.typography.labelLarge)
                                 }
                             }
                             if (active.any { monthly(it) == null }) Text("Для части старых записей нужно указать стоимость в рублях. Откройте их и нажмите «Редактировать».", color = MaterialTheme.colorScheme.error)
-                            OutlinedTextField(query,{query=it},label={Text("Найти подписку")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+                            AppField(query,{query=it},"Найти подписку")
                             val filtered = active.filter { it.name.contains(query,true) }
                             if(filtered.isEmpty()) Text(if(active.isEmpty()) "Добавьте первую подписку кнопкой +" else "Ничего не найдено")
                             filtered.forEach { s -> SubscriptionCard(s,monthly(s)) { nav.navigate("detail/${s.id}") } }
-                            Spacer(Modifier.height(64.dp))
+                            Spacer(Modifier.height(88.dp))
                         }
                     }
                     composable("stats") {
@@ -108,10 +139,15 @@ class MainActivity : ComponentActivity() {
                         val grouped = categories.map { c -> c to active.filter { it.category == c }.mapNotNull(::monthly).fold(BigDecimal.ZERO,BigDecimal::add).multiply(BigDecimal(period)) }
                         Screen {
                             PeriodSelector(period) { period=it }
-                            SpendingRing(grouped,grouped.fold(BigDecimal.ZERO) { acc,p -> acc+p.second })
+                            val total=grouped.fold(BigDecimal.ZERO) { acc,p -> acc+p.second }
+                            Surface(shape=MaterialTheme.shapes.large,color=MaterialTheme.colorScheme.surface) {
+                                SpendingRing(grouped,total)
+                            }
                             Text("Оценка регулярных расходов, а не история списаний", style=MaterialTheme.typography.bodySmall)
                             if(active.any { monthly(it)==null }) Text("Часть старых записей не включена: укажите их стоимость в рублях",color=MaterialTheme.colorScheme.error)
-                            grouped.forEach { (c,v) -> OutlinedButton(onClick={category=if(category==c)null else c},modifier=Modifier.fillMaxWidth()) { Text("$c — ${Money.display(v)} ₽") } }
+                            Text("По категориям",style=MaterialTheme.typography.titleMedium)
+                            if(total.signum()==0) Text("Добавьте подписку, чтобы увидеть распределение расходов.",color=MaterialTheme.colorScheme.onSurfaceVariant)
+                            grouped.forEach { (c,v) -> CategoryLegend(c,v,total,category==c) { category=if(category==c)null else c } }
                             category?.let { c -> active.filter{it.category==c}.forEach { s -> SubscriptionCard(s,monthly(s)) {nav.navigate("detail/${s.id}")} } }
                         }
                     }
@@ -150,54 +186,9 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }
+                    }
                 }
             }
         }
-    }
-}
-
-@Composable fun Screen(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp).imePadding(),verticalArrangement=Arrangement.spacedBy(16.dp),content=content)
-}
-@Composable fun Auth(register: Boolean,busy: Boolean,submit:(String,String,String,String)->Unit,switch:()->Unit) {
-    var name by rememberSaveable {mutableStateOf("")};var email by rememberSaveable {mutableStateOf("")}
-    // Passwords are intentionally excluded from saved instance state.
-    var pass by remember {mutableStateOf("")};var confirm by remember {mutableStateOf("")}
-    Screen {
-        Text("Все подписки под контролем",style=MaterialTheme.typography.headlineMedium)
-        Text("Создайте локальный профиль. Адрес почты используется как логин и не проверяется отправкой письма.")
-        if(register) OutlinedTextField(name,{name=it},label={Text("Имя")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(email,{email=it},label={Text("Электронная почта")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Email),modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(pass,{pass=it},label={Text("Пароль")},singleLine=true,visualTransformation=PasswordVisualTransformation(),keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Password),modifier=Modifier.fillMaxWidth())
-        if(register) {
-            Text("От 10 до 128 символов",style=MaterialTheme.typography.bodySmall)
-            OutlinedTextField(confirm,{confirm=it},label={Text("Повторите пароль")},singleLine=true,visualTransformation=PasswordVisualTransformation(),modifier=Modifier.fillMaxWidth())
-        }
-        Button(onClick={submit(name,email,pass,confirm)},enabled=!busy,modifier=Modifier.fillMaxWidth()) {Text(if(register)"Создать профиль" else "Войти")}
-        TextButton(onClick=switch,enabled=!busy) {Text(if(register)"Уже есть профиль" else "Создать профиль")}
-    }
-}
-@Composable fun Choice(label: String,options: Map<String,String>,value: String,onChange:(String)->Unit) {
-    var expanded by remember {mutableStateOf(false)}
-    Box { OutlinedButton(onClick={expanded=true}) {Text("$label: ${options[value]}")}
-        DropdownMenu(expanded,onDismissRequest={expanded=false}) {options.forEach{(k,v)->DropdownMenuItem(text={Text(v)},onClick={onChange(k);expanded=false})}}
-    }
-}
-@Composable fun Form(item:Subscription?,busy:Boolean,save:(String,String,String,String,String,Boolean)->Unit) {
-    var name by rememberSaveable(item?.id) {mutableStateOf(item?.name.orEmpty())}
-    var amount by rememberSaveable(item?.id) {mutableStateOf(item?.takeIf{it.currency == "RUB"}?.let{BigDecimal.valueOf(it.amountMinor,2).toPlainString()}.orEmpty())}
-    var period by rememberSaveable(item?.id) {mutableStateOf(item?.period?:"MONTH")}
-    var date by rememberSaveable(item?.id) {mutableStateOf(item?.nextDate?:LocalDate.now().plusDays(1).toString())}
-    var category by rememberSaveable(item?.id) {mutableStateOf(item?.category?:"Прочее")}
-    var trial by rememberSaveable(item?.id) {mutableStateOf(item?.trial?:false)}
-    Screen {
-        OutlinedTextField(name,{name=it},label={Text("Название сервиса")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        OutlinedTextField(amount,{amount=it},label={Text("Стоимость, ₽")},singleLine=true,keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),modifier=Modifier.fillMaxWidth())
-        if (item != null && item.currency != "RUB") Text("Введите стоимость этой записи в рублях. До сохранения она не учитывается в итогах.")
-        Choice("Период",periods,period){period=it}
-        OutlinedTextField(date,{date=it},label={Text("Дата списания ГГГГ-ММ-ДД")},singleLine=true,modifier=Modifier.fillMaxWidth())
-        Choice("Категория",categories.associateWith{it},category){category=it}
-        Row(verticalAlignment=Alignment.CenterVertically) {Checkbox(trial,{trial=it});Text("Пробный период")}
-        Button(onClick={save(name,amount,period,date,category,trial)},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Сохранить")}
     }
 }

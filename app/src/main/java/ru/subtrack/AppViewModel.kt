@@ -10,11 +10,18 @@ import java.time.LocalDate
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AppViewModel(private val repo: Repository) : ViewModel() {
     val user = MutableStateFlow<User?>(null)
+    val initializing = MutableStateFlow(true)
     val busy = MutableStateFlow(false)
     val message = MutableStateFlow<String?>(null)
     val items = user.flatMapLatest { u -> if (u == null) flowOf(emptyList()) else repo.store.subscriptions(u.id) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val dark = repo.dark.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    init {
+        viewModelScope.launch {
+            repo.session.catch { message.value = "Не удалось восстановить вход"; emit(null) }
+                .collect { user.value = it; initializing.value = false }
+        }
+    }
     private fun action(block: suspend () -> Unit) {
         if (busy.value) return
         viewModelScope.launch {
@@ -26,10 +33,10 @@ class AppViewModel(private val repo: Repository) : ViewModel() {
     }
     fun auth(register: Boolean, name: String, email: String, pass: String, confirm: String) = action {
         if (register) require(pass == confirm) { "Пароли не совпадают" }
-        user.value = if (register) repo.register(name, email.trim(), pass) else repo.login(email, pass)
-
+        val authenticated = if (register) repo.register(name, email.trim(), pass) else repo.login(email, pass)
+        repo.startSession(authenticated)
     }
-    fun logout() { if (!busy.value) user.value = null }
+    fun logout() = action { repo.endSession() }
     fun save(id: Long?, name: String, amount: String, period: String,
              date: String, category: String, trial: Boolean, done: () -> Unit) = action {
         val owner = requireNotNull(user.value).id
@@ -37,7 +44,7 @@ class AppViewModel(private val repo: Repository) : ViewModel() {
         val minor = requireNotNull(Money.minor(amount)) { "Введите положительную сумму с точностью до копеек" }
         require(period in listOf("MONTH", "QUARTER", "YEAR", "WEEK"))
         require(category in categories)
-        require(runCatching { LocalDate.parse(date) }.isSuccess) { "Дата должна иметь формат ГГГГ-ММ-ДД" }
+        require(PaymentDates.allowed(date)) { "Выберите сегодняшнюю или будущую дату списания" }
         if (id == null) repo.store.add(Subscription(ownerId=owner, name=name.trim(), amountMinor=minor,
             period=period, nextDate=date, category=category, trial=trial))
         else repo.store.edit(id,owner,name.trim(),minor,period,date,category,trial)

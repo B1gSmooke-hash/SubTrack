@@ -9,6 +9,14 @@ import java.util.Base64
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
+object PaymentDates {
+    fun allowed(value: String, today: LocalDate = LocalDate.now()): Boolean =
+        runCatching { !LocalDate.parse(value).isBefore(today) }.getOrDefault(false)
+    // Material DatePicker represents calendar days at midnight UTC, not local midnight.
+    fun utcMillis(date: LocalDate): Long = date.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+    fun fromUtc(millis: Long): LocalDate = java.time.Instant.ofEpochMilli(millis).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+}
+
 object Money {
     fun minor(text: String): Long? = runCatching {
         val value = text.trim().replace(',', '.').toBigDecimal()

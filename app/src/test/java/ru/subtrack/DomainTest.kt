@@ -5,6 +5,21 @@ import java.math.BigDecimal
 import java.time.LocalDate
 
 class DomainTest {
+    @Test fun paymentDatesRejectPastAndInvalidValues() {
+        val today=LocalDate.of(2026,10,29)
+        assertFalse(PaymentDates.allowed("2026-10-28",today))
+        assertFalse(PaymentDates.allowed("2026-02-30",today))
+        assertFalse(PaymentDates.allowed("",today))
+        assertTrue(PaymentDates.allowed("2026-10-29",today))
+        assertTrue(PaymentDates.allowed("2027-01-01",today))
+    }
+    @Test fun calendarUtcDaysRoundTripAcrossTimeZones() {
+        val day=LocalDate.of(2026,10,29)
+        for(zone in listOf("Pacific/Kiritimati","America/Los_Angeles","Europe/Moscow")) {
+            val now=day.atTime(23,59).atZone(java.time.ZoneId.of(zone))
+            assertEquals(now.toLocalDate(),PaymentDates.fromUtc(PaymentDates.utcMillis(now.toLocalDate())))
+        }
+    }
     @Test fun parsesCommaAndRejectsFractionsOfKopeck() { assertEquals(29990L,Money.minor("299,90"));assertNull(Money.minor("1.001")) }
     @Test fun rejectsInvalidAmounts() { listOf("0","-1","NaN","1e999","abc").forEach{assertNull(Money.minor(it))} }
     @Test fun yearlyNormalizesToMonth() { assertEquals(0,Money.monthly(120000,"YEAR").compareTo(BigDecimal("100"))) }

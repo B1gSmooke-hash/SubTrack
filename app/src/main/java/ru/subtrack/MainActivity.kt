@@ -134,7 +134,6 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("stats") {
                         var period by rememberSaveable { mutableIntStateOf(1) }
-                        var category by rememberSaveable { mutableStateOf<String?>(null) }
                         val active = items.filter { !it.archived && it.ownerId == user?.id }
                         val grouped = categories.map { c -> c to active.filter { it.category == c }.mapNotNull(::monthly).fold(BigDecimal.ZERO,BigDecimal::add).multiply(BigDecimal(period)) }
                         Screen {
@@ -147,16 +146,18 @@ class MainActivity : ComponentActivity() {
                             if(active.any { monthly(it)==null }) Text("Часть старых записей не включена: укажите их стоимость в рублях",color=MaterialTheme.colorScheme.error)
                             Text("По категориям",style=MaterialTheme.typography.titleMedium)
                             if(total.signum()==0) Text("Добавьте подписку, чтобы увидеть распределение расходов.",color=MaterialTheme.colorScheme.onSurfaceVariant)
-                            grouped.forEach { (c,v) -> CategoryLegend(c,v,total,category==c) { category=if(category==c)null else c } }
-                            category?.let { c -> active.filter{it.category==c}.forEach { s -> SubscriptionCard(s,monthly(s)) {nav.navigate("detail/${s.id}")} } }
+                            Column {
+                                grouped.forEachIndexed { index,(c,v) ->
+                                    CategoryLegend(c,v,total)
+                                    if(index<grouped.lastIndex) HorizontalDivider(color=MaterialTheme.colorScheme.outline.copy(alpha=.2f))
+                                }
+                            }
                         }
                     }
-                    composable("archive") { Screen {
+                    composable("archive") {
                         val archived=items.filter{it.archived && it.ownerId == user?.id}
-                        Text("Архивные подписки исключены из текущих расходов.")
-                        if(archived.isEmpty()) Text("Архив пока пуст")
-                        archived.forEach { s -> SubscriptionCard(s,monthly(s)) {nav.navigate("detail/${s.id}")} }
-                    } }
+                        ArchiveScreen(archived) { nav.navigate("detail/${it.id}") }
+                    }
                     composable("settings") {
                         SettingsScreen(user,dark,busy,onTheme={vm.theme(it)},onLogout={vm.logout()})
                     }

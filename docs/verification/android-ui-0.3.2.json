@@ -1,0 +1,13 @@
+{
+  "passed": [
+    "upgrade preserves profile and three subscriptions",
+    "empty archive",
+    "archive populated and opens matching details",
+    "restore updates archive and active total",
+    "legend has no clickable or selected ancestors and no filtering",
+    "period selector still recalculates totals",
+    "light and dark themes"
+  ],
+  "device": "Android Emulator API 35",
+  "version": "0.3.2"
+}

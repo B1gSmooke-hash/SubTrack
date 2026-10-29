@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,21 +85,19 @@ fun categoryColor(name: String) = categoryColors[categories.indexOf(name).coerce
     }
 }
 
-@Composable fun CategoryLegend(name: String, amount: BigDecimal, total: BigDecimal, selected: Boolean, onClick: () -> Unit) {
+@Composable fun CategoryLegend(name: String, amount: BigDecimal, total: BigDecimal) {
     val percent=if(total.signum()>0) amount.multiply(BigDecimal(100)).divide(total,1,RoundingMode.HALF_UP) else BigDecimal.ZERO
-    Surface(onClick=onClick,modifier=Modifier.fillMaxWidth(),shape=MaterialTheme.shapes.medium,
-        color=MaterialTheme.colorScheme.surface,
-        border=if(selected) BorderStroke(1.dp,MaterialTheme.colorScheme.primary) else null) {
-        Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+    // Informational legend, not a filter: no click action, ripple, outline or individual card.
+        Row(Modifier.fillMaxWidth().padding(vertical=14.dp).semantics(mergeDescendants=true) {},
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
             Box(Modifier.size(12.dp).background(categoryColor(name),CircleShape))
             Column(Modifier.weight(1f)) {
-                Text(name,style=MaterialTheme.typography.titleMedium)
+                Text(name,style=MaterialTheme.typography.bodyLarge)
                 Text(if(amount.signum()==0) "Нет расходов" else "${percent.toPlainString().replace('.',',')} % от суммы",
                     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text("${Money.display(amount)} ₽",style=MaterialTheme.typography.labelLarge)
         }
-    }
 }
 
 @Composable fun PeriodSelector(selected: Int, onSelect: (Int) -> Unit) {

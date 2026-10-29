@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // The chosen design uses a deep-green header in both themes; foreground stays white.
-@Composable private fun GreenHeader(content: @Composable ColumnScope.() -> Unit) {
+@Composable internal fun GreenHeader(content: @Composable ColumnScope.() -> Unit) {
     Box(Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
         .background(Brush.linearGradient(listOf(Color(0xFF125440),Color(0xFF1B775B))))) {
         Canvas(Modifier.matchParentSize()) {

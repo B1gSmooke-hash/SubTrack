@@ -5,14 +5,18 @@ const browser=await chromium.launch({headless:true});
 const page=await browser.newPage({viewport:{width:1150,height:1080},deviceScaleFactor:1.5});
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('file:///'+path.resolve(__dirname,'../prototype/index.html').replace(/\\/g,'/'));
-fs.mkdirSync(path.resolve(__dirname,'../test-results'),{recursive:true});
-const shot=async()=>{};
+const out=path.resolve(__dirname,'../test-results');fs.mkdirSync(out,{recursive:true});
+const shot=async n=>{if(process.env.SUBTRACK_SCREEN_DIR){
+fs.mkdirSync(process.env.SUBTRACK_SCREEN_DIR,{recursive:true});await page.waitForTimeout(220);
+await page.locator('#phone').screenshot({path:path.join(process.env.SUBTRACK_SCREEN_DIR,n+'.png')});
+if(process.env.SUBTRACK_SVG_EXPORTER)fs.writeFileSync(path.resolve(__dirname,'../design/figma-svg',n+'.svg'),await page.evaluate(require(process.env.SUBTRACK_SVG_EXPORTER)))
+}};
 await shot('01-login'); await page.evaluate(()=>go('register')); await shot('02-register');
 await page.locator('#name').fill('Проверка');await page.locator('#email').fill('check@example.test');
 await page.locator('#password').fill('test-password-27');await page.locator('#confirm').fill('test-password-27');
 await page.getByRole('button',{name:'Создать профиль',exact:true}).click();
 await page.getByText('Здравствуйте, Проверка').waitFor();
-await page.evaluate(()=>go('settings'));await page.getByRole('button',{name:'Выйти из профиля'}).click();
+await page.evaluate(()=>go('settings'));await page.getByRole('button',{name:'Выйти',exact:true}).click();
 await page.locator('#email').fill('check@example.test');await page.locator('#password').fill('wrong-password');
 await page.getByRole('button',{name:'Войти',exact:true}).click();await page.getByRole('alert').filter({hasText:'Неверный адрес или пароль'}).waitFor();
 await page.locator('#password').fill('test-password-27');await page.getByRole('button',{name:'Войти',exact:true}).click();await page.getByText('Здравствуйте, Проверка').waitFor();
@@ -29,10 +33,10 @@ await page.getByRole('button',{name:'Проверка сохранения',exac
 if(!await page.evaluate(()=>own().find(s=>s.name==='Проверка сохранения')?.currency==='RUB'))throw Error('saved currency is not RUB');
 await page.reload();await page.evaluate(()=>demo());await page.getByRole('button',{name:'Проверка сохранения',exact:true}).click();
 await page.getByRole('button',{name:'Редактировать',exact:true}).click();await page.locator('#amount').fill('200');await page.getByRole('button',{name:'Сохранить подписку'}).click();
-await page.getByRole('button',{name:'Проверка сохранения',exact:true}).click();await page.getByRole('button',{name:'Переместить в архив'}).click();
-if(!(await page.locator('main').textContent()).includes('Архив'))throw Error('archive failed');
+if(await page.evaluate(()=>screen)!=='detail')throw Error('edit should return to details');await page.getByRole('button',{name:'В архив',exact:true}).click();
+if(!(await page.locator('main').textContent()).includes('В архиве'))throw Error('archive failed');
 await page.getByRole('button',{name:'Восстановить',exact:true}).click();
-page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Удалить подписку',exact:true}).click();
+page.once('dialog',d=>d.accept());await page.getByRole('button',{name:'Удалить',exact:true}).click();
 await page.getByRole('button',{name:'Музыка Плюс',exact:true}).click();await shot('05-detail');
 await page.evaluate(()=>go('stats'));await shot('06-stats');await page.getByRole('button',{name:'Год',exact:true}).click();
 if(!(await page.locator('.ring').textContent()).includes('14 988'))throw Error('annual estimate failed');
@@ -41,7 +45,7 @@ if(/USD|EUR|курс|Банк России/i.test(await page.locator('main').tex
 await page.getByRole('checkbox',{name:'Тёмная тема'}).check();await shot('09-dark');
 await page.evaluate(()=>{
  document.body.classList.remove('dark');
- store.items.push({id:-1,owner:user.email,name:'Старая запись',amount:1000,currency:'USD',period:'MONTH',date:'2026-11-01',category:'Прочее',trial:false,archived:false});save();go('home');
+ store.items.push({id:-1,owner:user.email,name:'Старая запись',amount:1000,currency:'USD',period:'MONTH',date:today(),category:'Прочее',trial:false,archived:false});save();go('home');
 });
 if(!(await page.locator('.total').textContent()).includes('1 249'))throw Error('legacy amount included in ruble total');
 if(!await page.evaluate(()=>own().find(s=>s.id===-1).amount===1000&&own().find(s=>s.id===-1).currency==='USD'))throw Error('legacy data modified');
@@ -50,9 +54,32 @@ if((await page.locator('main').textContent()).includes('USD'))throw Error('legac
 await page.getByRole('button',{name:'Редактировать',exact:true}).click();
 if(await page.locator('#amount').inputValue()!=='')throw Error('legacy value relabeled as rubles');
 await page.locator('#amount').fill('900');await page.getByRole('button',{name:'Сохранить подписку'}).click();
-if(!(await page.locator('.total').textContent()).includes('2 149'))throw Error('corrected ruble amount missing');
+await page.evaluate(()=>go('home'));if(!(await page.locator('.total').textContent()).includes('2 149'))throw Error('corrected ruble amount missing');
 if(!await page.evaluate(()=>own().find(s=>s.id===-1).currency==='RUB'))throw Error('correction not stored in RUB');
+
+await page.reload();if(await page.evaluate(()=>screen)!=='home')throw Error('session not restored');
+await page.evaluate(()=>go('login'));if(await page.evaluate(()=>screen)!=='home')throw Error('authenticated user returned to login');
+await page.evaluate(()=>go('settings'));await page.getByRole('checkbox',{name:'Тёмная тема'}).check();await page.reload();
+if(!await page.locator('body').evaluate(e=>e.classList.contains('dark')))throw Error('theme not persisted');
+await page.evaluate(()=>{setTheme(false);go('form')});
+if(await page.locator('#date').getAttribute('min')!==await page.evaluate(()=>today()))throw Error('date minimum is not today');
+await page.locator('#date').fill('2000-01-01');if(!await page.locator('#date').evaluate(e=>e.validity.rangeUnderflow))throw Error('past date allowed');
+await page.locator('#name').focus();await page.locator('header h2').click();if(await page.locator('#name').evaluate(e=>document.activeElement===e))throw Error('outside tap left focus');
+await page.evaluate(()=>{period=1;go('stats')});const beforeLegend=await page.locator('main').textContent();
+if(await page.locator('.legend').first().evaluate(e=>!!e.closest('button,[role=button],[onclick],[tabindex]')||getComputedStyle(e).cursor!=='default'))throw Error('legend looks interactive');
+await page.locator('.legend').first().click();if(beforeLegend!==await page.locator('main').textContent())throw Error('legend changes content');
+await page.evaluate(()=>go('archive'));await page.getByRole('button',{name:'Старый сервис',exact:true}).click();await page.getByRole('button',{name:'Назад',exact:true}).click();
+if(await page.evaluate(()=>screen)!=='archive')throw Error('wrong return screen');
+await page.evaluate(()=>logout());await page.reload();if(await page.evaluate(()=>screen)!=='login')throw Error('logout did not clear session');
+await page.locator('#password').fill('temporary');await page.getByRole('button',{name:'Показать пароль',exact:true}).click();
+if(await page.locator('#password').getAttribute('type')!=='text')throw Error('password visibility');
+await page.getByRole('button',{name:'Скрыть пароль',exact:true}).click();if(await page.locator('#password').getAttribute('type')!=='password')throw Error('password hiding');
+await page.locator('#email').fill('check@example.test');await page.locator('#password').fill('test-password-27');await page.getByRole('button',{name:'Войти',exact:true}).click();
+await page.getByText('Здравствуйте, Проверка').waitFor();await page.evaluate(()=>go('archive'));await page.getByText('Архив пока пуст').waitFor();await shot('10-archive-empty');
+await page.setViewportSize({width:360,height:800});await page.evaluate(()=>go('settings'));
+if(!await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth))throw Error('mobile horizontal overflow');
 if(errors.length)throw Error(errors.join('\n'));
-fs.writeFileSync(path.resolve(__dirname,'../test-results/prototype-check.json'),JSON.stringify({passed:15,checks:['регистрация','неверный пароль','вход','валидация суммы','создание','сохранение после перезагрузки','редактирование','архивирование','восстановление','удаление','годовой расчёт','тёмная тема','сохранение только в рублях','настройки без курсов','исправление старой валютной записи'],pageErrors:errors},null,2));
-await browser.close();console.log('PASS: 15 browser scenarios');
-})();
+
+fs.writeFileSync(path.join(out,'prototype-check.json'),JSON.stringify({version:"0.3.2",passed:23,checks:['регистрация','неверный пароль','вход','валидация суммы','создание','сохранение после перезагрузки','редактирование','архивирование','восстановление','удаление','годовой расчёт','тёмная тема','сохранение только в рублях','настройки без курсов','исправление старой валютной записи','сохранение сеанса и запрет возврата ко входу','сохранение темы','календарь запрещает прошлую дату','снятие фокуса вне поля','неинтерактивная легенда','возврат из деталей в архив','выход и видимость пароля','пустой архив и мобильная ширина'],pageErrors:errors},null,2));
+await browser.close();console.log('PASS: 23 browser scenarios; 10 screenshots');
+})().catch(e=>{console.error(e);process.exit(1)});

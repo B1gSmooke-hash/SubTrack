@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="ru.subtrack.DomainTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-29T05:49:04" hostname="DESKTOP-3SHJJGJ" time="6.832">
+<testsuite name="ru.subtrack.DomainTest" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-29T07:22:55" hostname="DESKTOP-3SHJJGJ" time="5.748">
   <properties/>
-  <testcase name="rubleTotalsKeepKopecksAndPeriods" classname="ru.subtrack.DomainTest" time="0.037"/>
-  <testcase name="yearlyNormalizesToMonth" classname="ru.subtrack.DomainTest" time="0.001"/>
-  <testcase name="legacyAmountsAreNotRelabeledAsRubles" classname="ru.subtrack.DomainTest" time="0.097"/>
-  <testcase name="weeklyUsesAnnualizedEstimate" classname="ru.subtrack.DomainTest" time="0.002"/>
-  <testcase name="passwordLengthBoundaries" classname="ru.subtrack.DomainTest" time="0.086"/>
-  <testcase name="rejectsInvalidAmounts" classname="ru.subtrack.DomainTest" time="0.038"/>
-  <testcase name="monthEndIsClamped" classname="ru.subtrack.DomainTest" time="0.002"/>
+  <testcase name="rubleTotalsKeepKopecksAndPeriods" classname="ru.subtrack.DomainTest" time="0.008"/>
+  <testcase name="yearlyNormalizesToMonth" classname="ru.subtrack.DomainTest" time="0.0"/>
+  <testcase name="legacyAmountsAreNotRelabeledAsRubles" classname="ru.subtrack.DomainTest" time="0.04"/>
+  <testcase name="weeklyUsesAnnualizedEstimate" classname="ru.subtrack.DomainTest" time="0.0"/>
+  <testcase name="passwordLengthBoundaries" classname="ru.subtrack.DomainTest" time="0.018"/>
+  <testcase name="rejectsInvalidAmounts" classname="ru.subtrack.DomainTest" time="0.01"/>
+  <testcase name="monthEndIsClamped" classname="ru.subtrack.DomainTest" time="0.0"/>
   <testcase name="parsesCommaAndRejectsFractionsOfKopeck" classname="ru.subtrack.DomainTest" time="0.0"/>
-  <testcase name="calendarUtcDaysRoundTripAcrossTimeZones" classname="ru.subtrack.DomainTest" time="0.071"/>
-  <testcase name="paymentDatesRejectPastAndInvalidValues" classname="ru.subtrack.DomainTest" time="0.021"/>
-  <testcase name="passwordHashIsSaltedAndChecked" classname="ru.subtrack.DomainTest" time="6.465"/>
+  <testcase name="calendarUtcDaysRoundTripAcrossTimeZones" classname="ru.subtrack.DomainTest" time="0.025"/>
+  <testcase name="paymentDatesRejectPastAndInvalidValues" classname="ru.subtrack.DomainTest" time="0.011"/>
+  <testcase name="passwordHashIsSaltedAndChecked" classname="ru.subtrack.DomainTest" time="5.632"/>
   <testcase name="quarterlyNormalizesToMonth" classname="ru.subtrack.DomainTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

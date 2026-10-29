@@ -78,7 +78,7 @@ class MainActivity : ComponentActivity() {
         val route = entry?.destination?.route ?: if (user == null) "login" else "home"
         LaunchedEffect(route) { focus.clearFocus(); keyboard?.hide() }
         val main = route in listOf("home", "stats", "archive")
-        val title = when(route) { "login" -> "Вход"; "register" -> "Регистрация"; "home" -> "SubTrack"; "stats" -> "Статистика"; "archive" -> "Архив"; "settings" -> "Настройки"; "form/{id}" -> "Подписка"; else -> "Детали" }
+        val title = when(route) { "login" -> "Вход"; "register" -> "Регистрация"; "home" -> "SubTrack"; "stats" -> "Статистика"; "archive" -> "Архив"; "settings" -> "Настройки"; "form/{id}" -> "Подписка"; else -> "Детали подписки" }
         Scaffold(snackbarHost = { SnackbarHost(snack) }, topBar = {
             TopAppBar(title = { Text(title,style=MaterialTheme.typography.titleLarge) },
                 colors=TopAppBarDefaults.topAppBarColors(containerColor=MaterialTheme.colorScheme.background), navigationIcon = {
@@ -157,13 +157,9 @@ class MainActivity : ComponentActivity() {
                         if(archived.isEmpty()) Text("Архив пока пуст")
                         archived.forEach { s -> SubscriptionCard(s,monthly(s)) {nav.navigate("detail/${s.id}")} }
                     } }
-                    composable("settings") { Screen {
-                        Text("${user?.name}\n${user?.email}",style=MaterialTheme.typography.titleMedium)
-                        Text("Локальный профиль на этом устройстве. Данные не синхронизируются.")
-                        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) { Text("Тёмная тема",Modifier.weight(1f));Switch(dark,{vm.theme(it)},enabled=!busy) }
-                        Text("Валюта: российский рубль (₽)")
-                        OutlinedButton(onClick={vm.logout()},enabled=!busy) {Text("Выйти")}
-                    } }
+                    composable("settings") {
+                        SettingsScreen(user,dark,busy,onTheme={vm.theme(it)},onLogout={vm.logout()})
+                    }
                     composable("form/{id}") { back ->
                         val id=back.arguments?.getString("id")?.toLongOrNull()?.takeIf{it!=0L}
                         val item=items.firstOrNull{it.id==id && it.ownerId==user?.id}
@@ -172,19 +168,10 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("detail/{id}") { back ->
                         val item=items.firstOrNull{it.id==back.arguments?.getString("id")?.toLongOrNull() && it.ownerId==user?.id}
-                        var confirm by remember {mutableStateOf(false)}
-                        Screen {
-                            if(item==null) Text("Подписка не найдена") else {
-                                Text(item.name,style=MaterialTheme.typography.headlineMedium)
-                                Text(if (item.currency == "RUB") "${Money.display(BigDecimal.valueOf(item.amountMinor,2))} ₽ / ${periods[item.period]}" else "Укажите стоимость в рублях через «Редактировать»")
-                                Text("Следующее списание: ${item.nextDate}\nКатегория: ${item.category}\nПробный период: ${if(item.trial)"да" else "нет"}")
-                                monthly(item)?.let { Text("Оценка за год: ${Money.display(it.multiply(BigDecimal(12)))} ₽") }
-                                Button(onClick={nav.navigate("form/${item.id}")},enabled=!busy) { Text("Редактировать") }
-                                OutlinedButton(onClick={vm.archive(item)},enabled=!busy) {Text(if(item.archived)"Восстановить" else "В архив")}
-                                TextButton(onClick={confirm=true},enabled=!busy) {Text("Удалить",color=MaterialTheme.colorScheme.error)}
-                                if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Удалить подписку?")},text={Text("Запись будет удалена с этого устройства.")},confirmButton={TextButton(onClick={confirm=false;vm.delete(item){nav.popBackStack()}}){Text("Удалить")}},dismissButton={TextButton(onClick={confirm=false}){Text("Отмена")}})
-                            }
-                        }
+                        SubscriptionDetailsScreen(item,busy,
+                            onEdit={nav.navigate("form/${it.id}")},
+                            onArchive={vm.archive(it)},
+                            onDelete={vm.delete(it){nav.popBackStack()}})
                     }
                     }
                 }

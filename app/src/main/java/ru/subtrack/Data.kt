@@ -53,7 +53,7 @@ class Repository(private val context: Context, val store: Store) {
     suspend fun register(name: String, email: String, password: String): User = withContext(Dispatchers.IO) {
         require(name.trim().length in 2..60) { "Имя должно содержать от 2 до 60 символов" }
         require(android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) { "Проверьте адрес электронной почты" }
-        require(Passwords.valid(password)) { "Пароль должен содержать от 10 до 128 символов" }
+        require(Passwords.valid(password)) { "Пароль должен содержать от 6 до 128 символов" }
         val normalized = email.trim().lowercase(java.util.Locale.ROOT)
         require(store.user(normalized) == null) { "Этот адрес уже зарегистрирован на устройстве" }
         val salt = Passwords.salt()

@@ -104,7 +104,7 @@ private val LocalFieldFocus = staticCompositionLocalOf { FieldFocus() }
         AppField(email,{email=it},"Электронная почта",KeyboardType.Email)
         AppField(pass,{pass=it},"Пароль",KeyboardType.Password,password=true)
         if(register) {
-            Text("От 10 до 128 символов",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("От 6 до 128 символов",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
             AppField(confirm,{confirm=it},"Повторите пароль",KeyboardType.Password,password=true)
         }
         Button(onClick={focus.clearFocus();keyboard?.hide();submit(name,email,pass,confirm)},enabled=!busy,

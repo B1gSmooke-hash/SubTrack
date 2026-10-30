@@ -34,5 +34,5 @@ class DomainTest {
     }
     @Test fun monthEndIsClamped() { assertEquals(LocalDate.of(2026,2,28),Money.next(LocalDate.of(2026,1,31),"MONTH")) }
     @Test fun passwordHashIsSaltedAndChecked() { val a=Passwords.salt();val b=Passwords.salt();val h=Passwords.hash("test-password-27",a);assertNotEquals(h,Passwords.hash("test-password-27",b));assertTrue(Passwords.verify("test-password-27",a,h));assertFalse(Passwords.verify("wrong-password",a,h)) }
-    @Test fun passwordLengthBoundaries() { assertFalse(Passwords.valid("123456789"));assertTrue(Passwords.valid("1234567890"));assertFalse(Passwords.valid("x".repeat(129))) }
+    @Test fun passwordLengthBoundaries() { assertFalse(Passwords.valid("12345"));assertTrue(Passwords.valid("123456"));assertTrue(Passwords.valid("x".repeat(128)));assertFalse(Passwords.valid("x".repeat(129))) }
 }

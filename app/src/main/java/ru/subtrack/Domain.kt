@@ -51,5 +51,5 @@ object Passwords {
     }
     fun verify(password: String, salt: String, expected: String): Boolean =
         MessageDigest.isEqual(Base64.getDecoder().decode(hash(password, salt)), Base64.getDecoder().decode(expected))
-    fun valid(password: String): Boolean = password.length in 10..128
+    fun valid(password: String): Boolean = password.length in 6..128
 }

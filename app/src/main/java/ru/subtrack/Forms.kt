@@ -84,7 +84,9 @@ private val LocalFieldFocus = staticCompositionLocalOf { FieldFocus() }
 }
 
 @Composable fun Screen(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(24.dp),
+    val scroll = remember { androidx.compose.foundation.ScrollState(0) }
+    LaunchedEffect(Unit) { scroll.scrollTo(0) }
+    Column(Modifier.fillMaxSize().imePadding().verticalScroll(scroll).padding(24.dp),
         verticalArrangement=Arrangement.spacedBy(16.dp),content=content)
 }
 

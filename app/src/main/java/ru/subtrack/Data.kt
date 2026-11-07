@@ -25,6 +25,7 @@ data class Subscription(@PrimaryKey(autoGenerate = true) val id: Long = 0, val o
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1") suspend fun user(email: String): User?
     @Query("SELECT * FROM users WHERE id = :id LIMIT 1") suspend fun userById(id: Long): User?
     @Insert suspend fun addUser(user: User): Long
+    @Query("UPDATE users SET name=:name WHERE id=:id") suspend fun renameUser(id: Long, name: String)
     @Query("SELECT * FROM subscriptions WHERE ownerId = :owner ORDER BY nextDate, name")
     fun subscriptions(owner: Long): Flow<List<Subscription>>
     @Insert suspend fun add(item: Subscription)

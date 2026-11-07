@@ -36,6 +36,14 @@ class AppViewModel(private val repo: Repository) : ViewModel() {
         val authenticated = if (register) repo.register(name, email.trim(), pass) else repo.login(email, pass)
         repo.startSession(authenticated)
     }
+    fun rename(name: String, done: () -> Unit) = action {
+        val current = requireNotNull(user.value)
+        val trimmed = name.trim()
+        require(trimmed.length in 2..60) { "Имя должно содержать от 2 до 60 символов" }
+        repo.store.renameUser(current.id, trimmed)
+        user.value = current.copy(name = trimmed)
+        done()
+    }
     fun logout() = action { repo.endSession() }
     fun save(id: Long?, name: String, amount: String, period: String,
              date: String, category: String, trial: Boolean, done: () -> Unit) = action {

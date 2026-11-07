@@ -50,7 +50,9 @@ import java.util.Locale
     }
 }
 
-@Composable fun SettingsScreen(user: User?, dark: Boolean, busy: Boolean, onTheme: (Boolean) -> Unit, onLogout: () -> Unit) {
+@Composable fun SettingsScreen(user: User?, dark: Boolean, busy: Boolean, onTheme: (Boolean) -> Unit, onLogout: () -> Unit, onRename: (String, () -> Unit) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var draftName by remember { mutableStateOf("") }
     val context=LocalContext.current
     val version=remember(context) { context.packageManager.getPackageInfo(context.packageName,0).versionName.orEmpty() }
     Screen {
@@ -76,6 +78,14 @@ import java.util.Locale
                 SettingRow(Icons.Default.Smartphone,"Данные хранятся\nна этом устройстве","Без облачной синхронизации")
             }
         }
+        OutlinedButton(onClick={draftName=user?.name.orEmpty();editing=true},enabled=!busy,modifier=Modifier.fillMaxWidth()) {
+            Icon(Icons.Default.Edit,null);Spacer(Modifier.width(8.dp));Text("Изменить имя")
+        }
+        if(editing) AlertDialog(onDismissRequest={if(!busy) editing=false},
+            title={Text("Изменить имя")},
+            text={Column { AppField(draftName,{draftName=it},"Имя");Text("От 2 до 60 символов",style=MaterialTheme.typography.bodySmall) }},
+            confirmButton={TextButton(onClick={onRename(draftName){editing=false}},enabled=!busy && draftName.trim().length in 2..60){Text("Сохранить")}},
+            dismissButton={TextButton(onClick={editing=false},enabled=!busy){Text("Отмена")}})
         Spacer(Modifier.height(8.dp))
         Button(onClick=onLogout,enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),shape=MaterialTheme.shapes.medium) {
             Text("Выйти")

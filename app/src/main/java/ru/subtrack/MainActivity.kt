@@ -112,6 +112,8 @@ class MainActivity : ComponentActivity() {
                     } else {
                     composable("home") {
                         var query by rememberSaveable { mutableStateOf("") }
+                        var category by rememberSaveable { mutableStateOf<String?>(null) }
+                        var filterOpen by remember { mutableStateOf(false) }
                         val active = items.filter { !it.archived && it.ownerId == user?.id }
                         Screen {
                             Text("Здравствуйте, ${user?.name.orEmpty()}", style = MaterialTheme.typography.titleLarge)
@@ -125,8 +127,22 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             if (active.any { monthly(it) == null }) Text("Для части старых записей нужно указать стоимость в рублях. Откройте их и нажмите «Редактировать».", color = MaterialTheme.colorScheme.error)
-                            AppField(query,{query=it},"Найти подписку")
-                            val filtered = active.filter { it.name.contains(query,true) }
+                            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                                Box(Modifier.weight(1f)) { AppField(query,{query=it},"Найти подписку") }
+                                Box {
+                                    IconButton(onClick={filterOpen=true}) {
+                                        Icon(Icons.Default.FilterList,"Фильтр по категориям",tint=if(category!=null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                    DropdownMenu(expanded=filterOpen,onDismissRequest={filterOpen=false}) {
+                                        (listOf<String?>(null)+categories).forEach { c ->
+                                            DropdownMenuItem(text={Text(c?:"Все категории")},onClick={category=c;filterOpen=false},
+                                                trailingIcon={if(category==c) Icon(Icons.Default.Check,null)})
+                                        }
+                                    }
+                                }
+                            }
+                            category?.let { Text("Категория: $it",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary) }
+                            val filtered = active.filter { it.name.contains(query,true) && (category==null || it.category==category) }
                             if(filtered.isEmpty()) Text(if(active.isEmpty()) "Добавьте первую подписку кнопкой +" else "Ничего не найдено")
                             filtered.forEach { s -> SubscriptionCard(s,monthly(s)) { nav.navigate("detail/${s.id}") } }
                             Spacer(Modifier.height(88.dp))
@@ -159,7 +175,7 @@ class MainActivity : ComponentActivity() {
                         ArchiveScreen(archived) { nav.navigate("detail/${it.id}") }
                     }
                     composable("settings") {
-                        SettingsScreen(user,dark,busy,onTheme={vm.theme(it)},onLogout={vm.logout()})
+                        SettingsScreen(user,dark,busy,onTheme={vm.theme(it)},onLogout={vm.logout()},onRename={name,done -> vm.rename(name,done)})
                     }
                     composable("form/{id}") { back ->
                         val id=back.arguments?.getString("id")?.toLongOrNull()?.takeIf{it!=0L}
